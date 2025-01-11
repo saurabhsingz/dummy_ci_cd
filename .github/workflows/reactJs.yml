@@ -1,0 +1,54 @@
+name: Deploy app to server
+on:
+  push:
+    branches: [ "deployment" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    # Create tar of the current directory
+    - name: Create deployment package
+      run: tar -czf deploy.tar.gz .
+
+    # Install sshpass
+    - name: Install sshpass
+      run: sudo apt-get update && sudo apt-get install -y sshpass
+
+    # Copy files to server using sshpass and scp
+    - name: Copy deployment package
+      run: |
+        sshpass -p "${{ secrets.SSH_PASSWORD }}" scp deploy.tar.gz opp@${{ secrets.SERVER_IP }}:~/app/
+
+    # Deploy on the server using sshpass and ssh
+    - name: Deploy to server
+      run: |
+        sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh opp@${{ secrets.SERVER_IP }} << 'EOF'
+          set -e  # Stop script on any error
+          mkdir -p ~/app
+          cd ~/app
+          
+          # Clean old deployment
+          rm -rf *
+          
+          # Extract the deployment package
+          tar -xzf deploy.tar.gz
+          rm deploy.tar.gz
+          
+          # Build Docker image
+          docker build -t my-app:latest .
+          
+          # Stop and remove existing container
+          docker stop my-app-container || true
+          docker rm my-app-container || true
+          
+          # Run new container
+          docker run -d --name my-app-container \
+            -p 3000:3000 \  # Adjust port as needed
+            my-app:latest
+            
+          # Cleanup old images
+          docker image prune -f
+        EOF
