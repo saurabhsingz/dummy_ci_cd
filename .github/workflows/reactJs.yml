@@ -13,31 +13,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Create SSH directory and set permissions
-      - name: Create SSH directory
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+      
+      # Create .ssh directory and set permissions
+      - name: Setup SSH directory
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-
-      # Add the server's host key
-      - name: Add known hosts
-        run: |
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
 
-      # Create SSH key from secret
-      - name: Setup SSH key
-        run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-      # Test SSH connection
-      - name: Test SSH connection
-        run: ssh -v ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
-
-      # Deploy files
+      # Deploy using sshpass with explicit password
       - name: Deploy to server
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
-            ./* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}
+          sshpass -e sftp -o BatchMode=no \
+            -o StrictHostKeyChecking=no \
+            -b - ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << !
+              cd ${{ secrets.DEPLOY_PATH }}
+              put -r *
+              bye
+          !
