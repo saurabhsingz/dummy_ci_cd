@@ -1,49 +1,27 @@
-name: Deploy app to server
+name: Deploy to Server
+
 on:
   push:
-    branches: [ "deployment" ]
+    branches:
+      - deployment  # Change this to your deployment branch name
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v4
-    
-    # Create tar of the current directory
-    - name: Create deployment package
-      run: tar --exclude='.git' --exclude='node_modules' --exclude='deploy.tar.gz' -czf deploy.tar.gz .
-    
-    # Install sshpass
-    - name: Install sshpass
-      run: sudo apt-get update && sudo apt-get install -y sshpass
-    
-    # Copy files to server using sshpass and scp
-    - name: Copy deployment package
-      run: sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no deploy.tar.gz opp@${{ secrets.SERVER_IP }}:~/app/
-    
-    # Deploy on the server using sshpass and ssh
-    - name: Deploy to server
-      run: |
-        sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no opp@${{ secrets.SERVER_IP }} '
-          set -e
-          mkdir -p ~/app
-          cd ~/app
-          
-          # Extract the deployment package
-          tar -xzf deploy.tar.gz
-          rm deploy.tar.gz
-          
-          # Build Docker image
-          docker build -t my-app:latest .
-          
-          # Stop and remove existing container
-          docker stop my-app-container || true
-          docker rm my-app-container || true
-          
-          # Run new container
-          docker run -d --name my-app-container \
-            -p 3000:3000 \
-            my-app:latest
-            
-          # Cleanup old images
-          docker image prune -f
-        '
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+      
+      # Using environment variables for sensitive data
+      - name: Deploy to server
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -r ./* $SSH_USER@$SSH_HOST:$DEPLOY_PATH
