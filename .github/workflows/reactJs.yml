@@ -16,22 +16,21 @@ jobs:
       - name: Install sshpass
         run: sudo apt-get install -y sshpass
       
-      # Create .ssh directory and set permissions
       - name: Setup SSH directory
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      # Deploy using sshpass with explicit password
+      # Deploy to home directory
       - name: Deploy to server
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
           sshpass -e sftp -o BatchMode=no \
             -o StrictHostKeyChecking=no \
-            -b - ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << !
-              cd ${{ secrets.DEPLOY_PATH }}
-              put -r *
-              bye
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << !
+            cd ~
+            put -r *
+            bye
           !
