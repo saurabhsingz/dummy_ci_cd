@@ -33,7 +33,7 @@ jobs:
             git checkout deployment
             npm i
             npm run build
-            rm -rf /var/www/cicd.iterve.in/html/
-            cp -rf .dist/* /var/www/cicd.iterve.in/html/ 
+            echo $SSHPASS | sudo -S rm -rf /var/www/cicd.iterve.in/html/
+            echo $SSHPASS | sudo -S cp -rf .dist/* /var/www/cicd.iterve.in/html/ 
           EOF
       
