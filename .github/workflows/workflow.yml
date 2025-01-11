@@ -23,14 +23,16 @@ jobs:
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
       # Deploy to home directory
-      - name: Deploy to server
+      - name: Deploy and Run Docker
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
         run: |
-          sshpass -e sftp -o BatchMode=no \
-            -o StrictHostKeyChecking=no \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << !
-            cd ~
-            put -r *
-            bye
-          !
+          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+            cd ~/dummy_ci_cd
+            git pull origin
+            git checkout deployment
+            npm run build
+            rm -rf /var/www/cicd.iterve.in/html/
+            cp -rf .dist/* /var/www/cicd.iterve.in/html/ 
+          EOF
+      
