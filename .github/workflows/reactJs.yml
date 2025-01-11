@@ -2,7 +2,6 @@ name: Deploy app to server
 on:
   push:
     branches: [ "deployment" ]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -11,28 +10,23 @@ jobs:
     
     # Create tar of the current directory
     - name: Create deployment package
-      run: tar --exclude='./deploy.tar.gz' --exclude='./node_modules' --warning=no-file-changed -czf deploy.tar.gz .
-
-
+      run: tar --exclude='.git' --exclude='node_modules' --exclude='deploy.tar.gz' -czf deploy.tar.gz .
+    
     # Install sshpass
     - name: Install sshpass
       run: sudo apt-get update && sudo apt-get install -y sshpass
-
+    
     # Copy files to server using sshpass and scp
     - name: Copy deployment package
-      run: |
-        sshpass -p "${{ secrets.SSH_PASSWORD }}" scp deploy.tar.gz opp@${{ secrets.SERVER_IP }}:~/app/
-
+      run: sshpass -p "${{ secrets.SSH_PASSWORD }}" scp -o StrictHostKeyChecking=no deploy.tar.gz opp@${{ secrets.SERVER_IP }}:~/app/
+    
     # Deploy on the server using sshpass and ssh
     - name: Deploy to server
       run: |
-        sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh opp@${{ secrets.SERVER_IP }} << 'EOF'
-          set -e  # Stop script on any error
+        sshpass -p "${{ secrets.SSH_PASSWORD }}" ssh -o StrictHostKeyChecking=no opp@${{ secrets.SERVER_IP }} '
+          set -e
           mkdir -p ~/app
           cd ~/app
-          
-          # Clean old deployment
-          rm -rf *
           
           # Extract the deployment package
           tar -xzf deploy.tar.gz
@@ -47,9 +41,9 @@ jobs:
           
           # Run new container
           docker run -d --name my-app-container \
-            -p 3000:3000 \  # Adjust port as needed
+            -p 3000:3000 \
             my-app:latest
             
           # Cleanup old images
           docker image prune -f
-        EOF
+        '
