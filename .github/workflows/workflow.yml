@@ -1,0 +1,39 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - deployment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+      
+      - name: Setup SSH directory
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # Deploy to home directory
+      - name: Deploy and Run Docker
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+            cd ~/dummy_ci_cd
+            git pull origin
+            git checkout deployment
+            npm i
+            npm run build
+            echo $SSHPASS | sudo -S rm -rf /var/www/cicd.iterve.in/html/*
+            echo $SSHPASS | sudo -S cp -rf dist/* /var/www/cicd.iterve.in/html/
+          EOF
+      
