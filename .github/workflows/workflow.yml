@@ -29,8 +29,8 @@ jobs:
         run: |
           sshpass -e ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
             cd ~/dummy_ci_cd
+            git checkout master
             git pull origin master
-            git checkout deployment
             npm i
             npm run build
             echo $SSHPASS | sudo -S rm -rf /var/www/cicd.iterve.in/html/*
